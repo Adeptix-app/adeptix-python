@@ -1,0 +1,47 @@
+[build-system]
+requires = ["hatchling>=1.18"]
+build-backend = "hatchling.build"
+
+[project]
+name = "adeptix"
+dynamic = ["version"]
+description = "Official Python SDK for the Adeptix API - crypto payments and merchant payments."
+readme = "README.md"
+license = { file = "LICENSE" }
+requires-python = ">=3.9"
+authors = [{ name = "Adeptix" }]
+keywords = ["adeptix", "payments", "crypto", "payment-gateway", "api-client"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3 :: Only",
+    "Topic :: Office/Business :: Financial",
+    "Typing :: Typed",
+]
+# No runtime dependencies - stdlib only (urllib, hmac, json), matching the Node SDK (global fetch)
+# and the PHP SDK (ext-curl).
+dependencies = []
+
+[project.optional-dependencies]
+dev = ["pytest>=7"]
+
+[project.urls]
+Homepage = "https://docs.adeptix.app"
+Documentation = "https://docs.adeptix.app"
+
+[tool.hatch.version]
+path = "src/adeptix/_version.py"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/adeptix"]
+
+[tool.hatch.build.targets.sdist]
+include = ["src/adeptix", "tests", "README.md", "LICENSE"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+# Lets `pytest` run straight from a checkout without installing the package first.
+pythonpath = ["src"]
