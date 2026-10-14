@@ -77,6 +77,9 @@ class WebhookPaymentPaidEvent(TypedDict):
     value_coin: Optional[str]
     txid_out: Optional[str]
     paid_at: Optional[str]
+    #: ``True`` if the payment was created with a test key (``ak_test_...``). Test and live events
+    #: go to the same webhook URL - never fulfil a real order from an event where this is ``True``.
+    test_mode: bool
 
 
 class WebhookCryptoPaymentMatchedEvent(TypedDict):
@@ -87,7 +90,11 @@ class WebhookCryptoPaymentMatchedEvent(TypedDict):
     asset_id: str
     quoted_amount: str
     amount: str
+    #: Starts with ``sandbox_`` for a test-mode match - not a real transaction hash.
     tx_hash: str
+    #: ``True`` if the payment was created with a test key (``ak_test_...``). Test and live events
+    #: go to the same webhook URL - never fulfil a real order from an event where this is ``True``.
+    test_mode: bool
 
 
 WebhookEvent = Union[WebhookPaymentPaidEvent, WebhookCryptoPaymentMatchedEvent]

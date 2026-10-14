@@ -92,6 +92,10 @@ def adeptix_webhook():
     except AdeptixWebhookSignatureError:
         return "", 401
 
+    if event.get("test_mode"):
+        # A test-key payment - acknowledge it, but never fulfil a real order from it.
+        return "", 200
+
     if event["event"] == "payment.paid":
         ...  # mark your order paid - event["order_ref"] / event["transaction_id"]
     elif event["event"] == "crypto_payment.matched":
@@ -105,6 +109,21 @@ yes/no answer, `verify_webhook_signature(raw_body, signature_header, secret)` re
 never raises.
 
 Handlers should be idempotent — the same event can be delivered more than once.
+
+## Test mode
+
+Create a **Test** key (`ak_test_...`) from the dashboard's API Keys page and pass it as `api_key` —
+nothing else in the client changes. No real payment is made and nothing touches a blockchain; the
+amount you send picks the outcome:
+
+- Merchant payments: an amount ending in `.00` is `paid` immediately (and a `payment.paid` webhook is
+  sent), `.01` is `failed` (no webhook), anything else stays `pending`.
+- Crypto payments: a requested amount ending in `.00` is `matched` immediately (and a
+  `crypto_payment.matched` webhook is sent); anything else stays `pending` until it expires.
+  `pay_to_address` is the literal string `"sandbox"`.
+
+Test webhooks go to the same URL as live ones with `"test_mode": True` — make your production handler
+ignore them, as in the example above. See **https://docs.adeptix.app** for details.
 
 ## Error handling
 
