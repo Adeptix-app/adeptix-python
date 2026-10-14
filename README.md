@@ -13,6 +13,12 @@ Install straight from GitHub:
 pip install git+https://github.com/Adeptix-app/adeptix-python.git
 ```
 
+To pin a specific release instead of tracking the latest, add its tag:
+
+```bash
+pip install git+https://github.com/Adeptix-app/adeptix-python.git@v0.1.0
+```
+
 Requires Python 3.9 or later. No third-party dependencies — it uses only the standard library
 (`urllib`, `hmac`, `json`).
 
