@@ -7,15 +7,11 @@ Full API reference: **https://docs.adeptix.app**
 
 ## Install
 
-```bash
-pip install adeptix
-```
+Install straight from GitHub:
 
-> **Not on PyPI yet.** Until it is, install straight from GitHub:
->
-> ```bash
-> pip install git+https://github.com/Adeptix-app/adeptix-python.git
-> ```
+```bash
+pip install git+https://github.com/Adeptix-app/adeptix-python.git
+```
 
 Requires Python 3.9 or later. No third-party dependencies — it uses only the standard library
 (`urllib`, `hmac`, `json`).
