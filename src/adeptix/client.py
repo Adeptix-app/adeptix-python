@@ -6,18 +6,20 @@ import json
 import time
 import urllib.error
 import urllib.request
-from typing import Any, Callable, Dict, Mapping, Optional, Tuple, cast
+from typing import Any, Callable, Dict, List, Mapping, Optional, Tuple, cast
 from urllib.parse import quote
 
 from ._version import __version__
 from .errors import AdeptixApiError, AdeptixUnexpectedResponseError
 from .types import (
+    CryptoAsset,
     CryptoChain,
     CryptoPaymentRequest,
     CryptoPaymentRequestStatus,
     CryptoToken,
     Payment,
     PaymentStatus,
+    Provider,
 )
 
 DEFAULT_BASE_URL = "https://api.adeptix.app/v1"
@@ -61,10 +63,11 @@ class AdeptixClient:
         normally need this.
     :param timeout_s: Per-request timeout in seconds. Defaults to 15.
     :param max_retries: How many times to retry a GET request on a network error or a 5xx
-        response, with exponential backoff. Defaults to 2. POST requests are NEVER auto-retried -
-        there's no idempotency-key mechanism on the API today, so a retried POST could create a
-        second payment request or checkout session. Retry those yourself only when you're sure the
-        first attempt never reached the server.
+        response, with exponential backoff. Defaults to 2. POST requests are NEVER auto-retried by
+        the client - without an idempotency key a retried POST could create a second payment request
+        or checkout session. Pass ``idempotency_key=`` to a create call and you can retry it yourself
+        safely: the same key with the same request returns the original response instead of creating
+        a duplicate.
     :param transport: Inject a custom HTTP transport - mainly for tests. See :data:`Transport`.
         Defaults to a stdlib ``urllib`` request.
     """
@@ -88,12 +91,19 @@ class AdeptixClient:
 
         self.crypto = CryptoPayments(self)
         self.payments = Payments(self)
+        self.providers = Providers(self)
 
     def __repr__(self) -> str:
         # Deliberately omits the API key so it can't leak into logs or tracebacks.
         return f"AdeptixClient(base_url={self._base_url!r})"
 
-    def _request(self, method: str, path: str, body: Optional[Dict[str, Any]] = None) -> Any:
+    def _request(
+        self,
+        method: str,
+        path: str,
+        body: Optional[Dict[str, Any]] = None,
+        idempotency_key: Optional[str] = None,
+    ) -> Any:
         url = f"{self._base_url}{path}"
         is_retryable = method == "GET"
         attempt = 0
@@ -103,6 +113,8 @@ class AdeptixClient:
             "Accept": "application/json",
             "User-Agent": f"adeptix-python/{__version__}",
         }
+        if idempotency_key:
+            headers["Idempotency-Key"] = idempotency_key
         payload: Optional[bytes] = None
         if body is not None:
             # Drop None values so an omitted optional field isn't sent as JSON null.
@@ -142,12 +154,24 @@ class AdeptixClient:
             raise AdeptixApiError(status, parsed)
 
 
+class CryptoAssets:
+    """Discovery for the Crypto Payments API. See https://docs.adeptix.app/discovery"""
+
+    def __init__(self, client: AdeptixClient) -> None:
+        self._client = client
+
+    def list(self) -> List[CryptoAsset]:
+        """The chain/token pairs ``create_payment_request`` accepts right now."""
+        return cast(List[CryptoAsset], self._client._request("GET", "/crypto/assets")["data"])
+
+
 class CryptoPayments:
     """The Crypto Payments API - unique, exact-amount on-chain deposits for USDT/USDC on BSC,
     Polygon, or Tron. See https://docs.adeptix.app/crypto-payments"""
 
     def __init__(self, client: AdeptixClient) -> None:
         self._client = client
+        self.assets = CryptoAssets(client)
 
     def create_payment_request(
         self,
@@ -157,6 +181,11 @@ class CryptoPayments:
         amount: str,
         order_ref: Optional[str] = None,
         customer_email: Optional[str] = None,
+        description: Optional[str] = None,
+        return_url: Optional[str] = None,
+        cancel_url: Optional[str] = None,
+        metadata: Optional[Dict[str, str]] = None,
+        idempotency_key: Optional[str] = None,
     ) -> CryptoPaymentRequest:
         """Reserve a unique deposit amount and get the address to send it to.
 
@@ -169,6 +198,15 @@ class CryptoPayments:
         :param order_ref: Your own order/invoice identifier, echoed back in the status response and
             webhook payload.
         :param customer_email: The customer's email, stored for your own records.
+        :param description: A short description (up to 500 characters), shown on the hosted checkout
+            page and echoed back.
+        :param return_url: Where the hosted checkout page sends the customer after paying. Absolute
+            https URL (http only for localhost with a test key).
+        :param cancel_url: Where the hosted checkout page sends the customer if they cancel.
+        :param metadata: Your own data: up to 20 string keys with string values, echoed back.
+        :param idempotency_key: Makes this POST safe to retry - the same key with the same request
+            returns the original response. 1-255 printable ASCII characters; generate it once per
+            logical payment. See https://docs.adeptix.app/idempotency
         """
         return cast(
             CryptoPaymentRequest,
@@ -181,7 +219,12 @@ class CryptoPayments:
                     "amount": amount,
                     "order_ref": order_ref,
                     "customer_email": customer_email,
+                    "description": description,
+                    "return_url": return_url,
+                    "cancel_url": cancel_url,
+                    "metadata": metadata,
                 },
+                idempotency_key=idempotency_key,
             ),
         )
 
@@ -210,6 +253,11 @@ class Payments:
         email: str,
         provider: str,
         order_ref: Optional[str] = None,
+        description: Optional[str] = None,
+        return_url: Optional[str] = None,
+        cancel_url: Optional[str] = None,
+        metadata: Optional[Dict[str, str]] = None,
+        idempotency_key: Optional[str] = None,
     ) -> Payment:
         """Open a hosted checkout session with a provider.
 
@@ -218,9 +266,19 @@ class Payments:
         :param amount: The amount to charge, as a plain decimal string, e.g. ``"49.00"``. Not a float.
         :param currency: A 3-letter ISO currency code, e.g. ``"USD"``.
         :param email: The customer's email address.
-        :param provider: The id of an enabled provider on your account, e.g. ``"stripe"``.
+        :param provider: The id of an enabled provider on your account, e.g. ``"stripe"`` (see
+            ``client.providers.list()``).
         :param order_ref: Your own order/invoice identifier, echoed back in the status response and
             webhook payload.
+        :param description: A short description (up to 500 characters), echoed back.
+        :param return_url: Where you intend the customer to land after paying. Absolute https URL
+            (http only for localhost with a test key). Stored and echoed back, but a live card/wallet
+            payer is NOT redirected to it automatically - rely on the webhook or ``payments.get``.
+        :param cancel_url: Where you intend the customer to land if they abandon checkout.
+        :param metadata: Your own data: up to 20 string keys with string values, echoed back.
+        :param idempotency_key: Makes this POST safe to retry - the same key with the same request
+            returns the original response. 1-255 printable ASCII characters; generate it once per
+            logical payment. See https://docs.adeptix.app/idempotency
         """
         return cast(
             Payment,
@@ -233,7 +291,12 @@ class Payments:
                     "email": email,
                     "provider": provider,
                     "order_ref": order_ref,
+                    "description": description,
+                    "return_url": return_url,
+                    "cancel_url": cancel_url,
+                    "metadata": metadata,
                 },
+                idempotency_key=idempotency_key,
             ),
         )
 
@@ -243,3 +306,19 @@ class Payments:
             PaymentStatus,
             self._client._request("GET", f"/payments/{_quote_path_segment(transaction_id)}"),
         )
+
+
+class Providers:
+    """Discovery for the Merchant Payments API: the providers you can pass as ``provider``.
+    See https://docs.adeptix.app/discovery"""
+
+    def __init__(self, client: AdeptixClient) -> None:
+        self._client = client
+
+    def list(self) -> List[Provider]:
+        """The providers ``payments.create`` accepts for your account right now."""
+        return cast(List[Provider], self._client._request("GET", "/providers")["data"])
+
+    def get(self, provider_id: str) -> Provider:
+        """One provider. Raises ``AdeptixApiError`` (code ``not_found``) if it isn't usable on your account."""
+        return cast(Provider, self._client._request("GET", f"/providers/{_quote_path_segment(provider_id)}"))

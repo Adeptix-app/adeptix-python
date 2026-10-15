@@ -4,7 +4,7 @@ Full API reference: https://docs.adeptix.app
 """
 
 from ._version import __version__
-from .client import AdeptixClient, CryptoPayments, Payments, Transport
+from .client import AdeptixClient, CryptoAssets, CryptoPayments, Payments, Providers, Transport
 from .errors import (
     KNOWN_ERROR_CODES,
     AdeptixApiError,
@@ -13,6 +13,7 @@ from .errors import (
     AdeptixWebhookSignatureError,
 )
 from .types import (
+    CryptoAsset,
     CryptoChain,
     CryptoPaymentRequest,
     CryptoPaymentRequestStatus,
@@ -21,17 +22,29 @@ from .types import (
     MerchantPaymentStatus,
     Payment,
     PaymentStatus,
+    Provider,
+    ProviderCountries,
+    WebhookCryptoPaymentExpiredEvent,
     WebhookCryptoPaymentMatchedEvent,
     WebhookEvent,
+    WebhookPaymentFailedEvent,
     WebhookPaymentPaidEvent,
 )
-from .webhooks import parse_webhook_event, verify_webhook_signature
+from .webhooks import (
+    DEFAULT_TOLERANCE_SECONDS,
+    construct_event,
+    parse_webhook_event,
+    verify_webhook_signature,
+    verify_webhook_signature_v2,
+)
 
 __all__ = [
     "__version__",
     "AdeptixClient",
+    "CryptoAssets",
     "CryptoPayments",
     "Payments",
+    "Providers",
     "Transport",
     "AdeptixError",
     "AdeptixApiError",
@@ -40,6 +53,14 @@ __all__ = [
     "KNOWN_ERROR_CODES",
     "verify_webhook_signature",
     "parse_webhook_event",
+    "verify_webhook_signature_v2",
+    "construct_event",
+    "DEFAULT_TOLERANCE_SECONDS",
+    "CryptoAsset",
+    "Provider",
+    "ProviderCountries",
+    "WebhookPaymentFailedEvent",
+    "WebhookCryptoPaymentExpiredEvent",
     "CryptoChain",
     "CryptoToken",
     "CryptoPaymentStatus",

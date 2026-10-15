@@ -12,12 +12,15 @@ KNOWN_ERROR_CODES = (
     "not_found",
     "platform_not_configured",
     "internal_error",
+    "rate_limited",
     "asset_unavailable",
     "no_quote_available",
     "too_many_pending_requests",
     "provider_unavailable",
     "provider_disabled_for_account",
     "checkout_provider_error",
+    "idempotency_key_reuse",
+    "idempotent_request_in_progress",
 )
 
 
