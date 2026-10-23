@@ -16,7 +16,7 @@ pip install git+https://github.com/Adeptix-app/adeptix-python.git
 To pin a specific release instead of tracking the latest, add its tag:
 
 ```bash
-pip install git+https://github.com/Adeptix-app/adeptix-python.git@v0.2.0
+pip install git+https://github.com/Adeptix-app/adeptix-python.git@v0.1.0
 ```
 
 Requires Python 3.9 or later. No third-party dependencies — it uses only the standard library
@@ -47,7 +47,9 @@ request = client.crypto.create_payment_request(
 # how deposits are matched by exact amount, not by a per-request address.
 
 status = client.crypto.get_payment_request(request["payment_request_id"])
-# status["status"]: "pending" | "matched" | "expired"
+# status["status"]: "pending" | "matched" | "underpaid" | "expired"
+# (matched = paid, including slightly more than requested; underpaid: slightly less arrived and was
+# matched, you decide; see the webhook below)
 ```
 
 ### Merchant Payments API
@@ -162,6 +164,11 @@ def adeptix_webhook():
         ...  # mark your order paid - event["order_ref"] / event["transaction_id"]
     elif event["event"] == "crypto_payment.matched":
         ...  # mark your order paid - event["order_ref"] / event["payment_request_id"]
+        #      (event.get("overpaid"): slightly more than requested arrived; still paid, the extra
+        #      is not refunded automatically)
+    elif event["event"] == "crypto_payment.underpaid":
+        ...  # slightly less arrived and was matched: compare event["received_amount"] with
+        #      event["expected_amount"] and fulfil only if you accept it
     elif event["event"] in ("payment.failed", "crypto_payment.expired"):
         ...  # a (test) card payment failed / a crypto request timed out unpaid
     # Any other event type: new ones can be added - acknowledge and ignore.

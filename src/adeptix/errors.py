@@ -16,6 +16,8 @@ KNOWN_ERROR_CODES = (
     "asset_unavailable",
     "no_quote_available",
     "too_many_pending_requests",
+    "invalid_expiry",
+    "amount_below_minimum",
     "provider_unavailable",
     "provider_disabled_for_account",
     "checkout_provider_error",
@@ -40,6 +42,8 @@ class AdeptixApiError(AdeptixError):
     code: str
     details: Any
     body: Dict[str, Any]
+    #: The asset's minimum amount (decimal string), set when ``code`` is ``"amount_below_minimum"``.
+    minimum_amount: Optional[str]
 
     def __init__(self, status: int, body: Dict[str, Any]) -> None:
         message: Optional[str] = body.get("message") if isinstance(body.get("message"), str) else None
@@ -48,6 +52,8 @@ class AdeptixApiError(AdeptixError):
         self.code = body["error"]
         self.details = body.get("details")
         self.body = body
+        minimum = body.get("minimum_amount")
+        self.minimum_amount = minimum if isinstance(minimum, str) else None
 
 
 class AdeptixUnexpectedResponseError(AdeptixError):

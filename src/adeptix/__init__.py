@@ -4,7 +4,15 @@ Full API reference: https://docs.adeptix.app
 """
 
 from ._version import __version__
-from .client import AdeptixClient, CryptoAssets, CryptoPayments, Payments, Providers, Transport
+from .client import (
+    AdeptixClient,
+    CryptoAssets,
+    CryptoPaymentRequests,
+    CryptoPayments,
+    Payments,
+    Providers,
+    Transport,
+)
 from .errors import (
     KNOWN_ERROR_CODES,
     AdeptixApiError,
@@ -13,8 +21,14 @@ from .errors import (
     AdeptixWebhookSignatureError,
 )
 from .types import (
+    CRYPTO_PAYMENT_PAID_STATUSES,
+    CRYPTO_PAYMENT_STATUSES,
+    WEBHOOK_EVENT_TYPES,
+    CryptoMatchMethod,
+    WebhookCryptoPaymentAmountDiffersEvent,
     CryptoAsset,
     CryptoChain,
+    CryptoPaymentDetail,
     CryptoPaymentRequest,
     CryptoPaymentRequestStatus,
     CryptoPaymentStatus,
@@ -42,6 +56,7 @@ __all__ = [
     "__version__",
     "AdeptixClient",
     "CryptoAssets",
+    "CryptoPaymentRequests",
     "CryptoPayments",
     "Payments",
     "Providers",
@@ -64,12 +79,18 @@ __all__ = [
     "CryptoChain",
     "CryptoToken",
     "CryptoPaymentStatus",
+    "CryptoMatchMethod",
+    "CRYPTO_PAYMENT_STATUSES",
+    "CRYPTO_PAYMENT_PAID_STATUSES",
+    "WEBHOOK_EVENT_TYPES",
     "MerchantPaymentStatus",
     "CryptoPaymentRequest",
     "CryptoPaymentRequestStatus",
+    "CryptoPaymentDetail",
     "Payment",
     "PaymentStatus",
     "WebhookEvent",
     "WebhookPaymentPaidEvent",
     "WebhookCryptoPaymentMatchedEvent",
+    "WebhookCryptoPaymentAmountDiffersEvent",
 ]

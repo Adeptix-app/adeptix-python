@@ -6,8 +6,9 @@ import json
 import time
 import urllib.error
 import urllib.request
-from typing import Any, Callable, Dict, List, Mapping, Optional, Tuple, cast
-from urllib.parse import quote
+from datetime import datetime
+from typing import Any, Callable, Dict, List, Mapping, Optional, Tuple, Union, cast
+from urllib.parse import quote, urlencode
 
 from ._version import __version__
 from .errors import AdeptixApiError, AdeptixUnexpectedResponseError
@@ -16,6 +17,7 @@ from .types import (
     CryptoChain,
     CryptoPaymentRequest,
     CryptoPaymentRequestStatus,
+    CryptoPaymentStatus,
     CryptoToken,
     Payment,
     PaymentStatus,
@@ -165,13 +167,55 @@ class CryptoAssets:
         return cast(List[CryptoAsset], self._client._request("GET", "/crypto/assets")["data"])
 
 
+class CryptoPaymentRequests:
+    """Reading crypto payment requests. See https://docs.adeptix.app/crypto-payments#list"""
+
+    def __init__(self, client: AdeptixClient) -> None:
+        self._client = client
+
+    def list(
+        self,
+        *,
+        status: Optional[CryptoPaymentStatus] = None,
+        order_ref: Optional[str] = None,
+        created_after: Optional[Union[str, datetime]] = None,
+        limit: Optional[int] = None,
+    ) -> List[CryptoPaymentRequestStatus]:
+        """Your payment requests, newest first (same shape as ``get``), for the key's mode.
+
+        No pagination cursors: narrow with ``status``, ``order_ref`` and ``created_after`` (an
+        ISO 8601 string or a timezone-aware ``datetime``). ``limit`` is 1-100, default 25.
+        """
+        query: Dict[str, str] = {}
+        if status:
+            query["status"] = status
+        if order_ref:
+            query["order_ref"] = order_ref
+        if created_after is not None:
+            query["created_after"] = created_after.isoformat() if isinstance(created_after, datetime) else created_after
+        if limit is not None:
+            query["limit"] = str(limit)
+        path = "/crypto/payment-requests" + (f"?{urlencode(query)}" if query else "")
+        return cast(List[CryptoPaymentRequestStatus], self._client._request("GET", path)["data"])
+
+    def get(self, payment_request_id: str) -> CryptoPaymentRequestStatus:
+        """Same as ``client.crypto.get_payment_request``."""
+        return cast(
+            CryptoPaymentRequestStatus,
+            self._client._request(
+                "GET", f"/crypto/payment-requests/{_quote_path_segment(payment_request_id)}"
+            ),
+        )
+
+
 class CryptoPayments:
-    """The Crypto Payments API - unique, exact-amount on-chain deposits for USDT/USDC on BSC,
-    Polygon, or Tron. See https://docs.adeptix.app/crypto-payments"""
+    """The Crypto Payments API - unique, exact-amount on-chain deposits: USDT on BSC, Polygon or
+    Tron; USDC on BSC or Polygon. See https://docs.adeptix.app/crypto-payments"""
 
     def __init__(self, client: AdeptixClient) -> None:
         self._client = client
         self.assets = CryptoAssets(client)
+        self.payment_requests = CryptoPaymentRequests(client)
 
     def create_payment_request(
         self,
@@ -186,6 +230,7 @@ class CryptoPayments:
         cancel_url: Optional[str] = None,
         metadata: Optional[Dict[str, str]] = None,
         idempotency_key: Optional[str] = None,
+        expires_in_minutes: Optional[int] = None,
     ) -> CryptoPaymentRequest:
         """Reserve a unique deposit amount and get the address to send it to.
 
@@ -194,7 +239,8 @@ class CryptoPayments:
         :param chain: One of ``"bsc"``, ``"polygon"``, ``"tron"``.
         :param token: One of ``"USDT"``, ``"USDC"``.
         :param amount: The amount you want to receive, as a plain decimal string, e.g. ``"49.00"``.
-            Not a float.
+            Not a float. At least the asset's ``min_amount`` (``crypto.assets.list()``), otherwise
+            ``AdeptixApiError`` with code ``"amount_below_minimum"`` (see ``minimum_amount``).
         :param order_ref: Your own order/invoice identifier, echoed back in the status response and
             webhook payload.
         :param customer_email: The customer's email, stored for your own records.
@@ -207,6 +253,8 @@ class CryptoPayments:
         :param idempotency_key: Makes this POST safe to retry - the same key with the same request
             returns the original response. 1-255 printable ASCII characters; generate it once per
             logical payment. See https://docs.adeptix.app/idempotency
+        :param expires_in_minutes: How long the customer has to pay, in whole minutes from 10 to 60.
+            Default 20. Any other value is rejected with code ``"invalid_expiry"``.
         """
         return cast(
             CryptoPaymentRequest,
@@ -223,6 +271,7 @@ class CryptoPayments:
                     "return_url": return_url,
                     "cancel_url": cancel_url,
                     "metadata": metadata,
+                    "expires_in_minutes": expires_in_minutes,
                 },
                 idempotency_key=idempotency_key,
             ),
