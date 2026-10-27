@@ -44,7 +44,8 @@ request = client.crypto.create_payment_request(
 # Show request["amount"] and request["pay_to_address"] to the customer - or send them to
 # request["checkout_url"], a hosted payment page (amount, address, QR code, countdown, live status).
 # request["amount"] may differ slightly from "49.00" - see the docs' note on
-# how deposits are matched by exact amount, not by a per-request address.
+# how deposits are matched by exact amount. The address can differ between requests:
+# always show the one from this response.
 
 status = client.crypto.get_payment_request(request["payment_request_id"])
 # status["status"]: "pending" | "matched" | "underpaid" | "expired"

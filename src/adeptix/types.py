@@ -42,8 +42,9 @@ class CryptoPaymentRequest(_CheckoutFieldsResponse):
     payment_request_id: str
     chain: CryptoChain
     token: CryptoToken
-    #: The on-chain address to send the deposit to. Shared across requests - the amount is what
-    #: identifies this one.
+    #: The on-chain address to send the deposit to, for this request. It can differ between
+    #: requests: always show the address from this response. Together with the exact amount it
+    #: identifies this payment.
     pay_to_address: str
     #: The exact amount the customer must send. With a live key, 0.0001 to 0.05 above the amount
     #: requested.
@@ -86,6 +87,7 @@ class _CryptoPaymentRequestStatusAdditions(TypedDict, total=False):
     asset_id: str
     chain: Optional[CryptoChain]
     token: Optional[CryptoToken]
+    #: The address returned when the request was created (it can differ between requests);
     #: ``"sandbox"`` for a test request.
     pay_to_address: Optional[str]
     #: The matched deposit; ``None`` unless ``status`` is ``"matched"`` or ``"underpaid"``.

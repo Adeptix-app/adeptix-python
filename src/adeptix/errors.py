@@ -8,6 +8,7 @@ from typing import Any, Dict, Optional
 #: new codes may be added without an SDK release - compare against these, don't exhaustively match.
 KNOWN_ERROR_CODES = (
     "unauthorized",
+    "email_unverified",
     "invalid_request",
     "not_found",
     "platform_not_configured",
